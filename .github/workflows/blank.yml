@@ -3,10 +3,6 @@ name: Construire APK Wells Pad
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'Wells_Pad_Installable.zip'
-      - '.github/workflows/blank.yml'
 
 permissions:
   contents: read
@@ -16,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Recuperer le depot
+      - name: Recuperer le projet
         uses: actions/checkout@v4
 
       - name: Installer Node.js
@@ -30,14 +26,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Extraire Wells Pad
+      - name: Installer le SDK Android
+        uses: android-actions/setup-android@v3
+
+      - name: Verifier et extraire Wells Pad
         run: |
           test -f Wells_Pad_Installable.zip
           mkdir -p app/www
           unzip -o Wells_Pad_Installable.zip -d app/www
           test -f app/www/index.html
 
-      - name: Creer le projet Android
+      - name: Configurer Capacitor
         working-directory: app
         run: |
           npm init -y
@@ -47,15 +46,21 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Compiler le APK
+      - name: Installer les composants Android
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Construire l'APK
         working-directory: app/android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Publier le fichier APK
+      - name: Publier l'APK
         uses: actions/upload-artifact@v4
         with:
           name: Wells-Pad-APK
           path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
           
