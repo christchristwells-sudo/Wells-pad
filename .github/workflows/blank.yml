@@ -1,21 +1,28 @@
-name: Construire APK Wells Studio
+
+name: Construire APK Wells Pad
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'Wells_Pad_Installable.zip'
+      - '.github/workflows/blank.yml'
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  construire:
     runs-on: ubuntu-latest
 
     steps:
       - name: Recuperer le depot
         uses: actions/checkout@v4
 
-      - name: Verifier le fichier source
-        run: test -f wells_studio_android_apk_source_1_0.zip
-
-      - name: Decompresser le projet
-        run: unzip -o wells_studio_android_apk_source_1_0.zip -d source
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Installer Java
         uses: actions/setup-java@v4
@@ -23,24 +30,32 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Installer Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
+      - name: Extraire Wells Pad
+        run: |
+          test -f Wells_Pad_Installable.zip
+          mkdir -p app/www
+          unzip -o Wells_Pad_Installable.zip -d app/www
+          test -f app/www/index.html
 
-      - name: Installer le SDK Android
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Creer le projet Android
+        working-directory: app
+        run: |
+          npm init -y
+          npm install @capacitor/core@6 @capacitor/android@6
+          npm install --save-dev @capacitor/cli@6
+          npx cap init "Wells Pad" "com.wells.pad" --web-dir=www
+          npx cap add android
+          npx cap sync android
 
-      - name: Construire APK
-        working-directory: source/wells_studio_android
-        run: gradle --no-daemon assembleDebug
+      - name: Compiler le APK
+        working-directory: app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
-      - name: Publier APK
+      - name: Publier le fichier APK
         uses: actions/upload-artifact@v4
         with:
-          name: Wells-Studio-APK-debug
-          path: source/wells_studio_android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
+          name: Wells-Pad-APK
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          
